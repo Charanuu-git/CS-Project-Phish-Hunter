@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang = "en">       
+<head>
+  <meta charset="UTF-8">
+  <title>Phish Hunter🎣</title>
+  <link rel="stylesheet" href="Frontend V1.css">
+  <style>
+    .upload-box input[type="file"] {
+      display: none;
+    }
+    .upload-box {
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-box .upload-icon,
+    .upload-box span,
+    .upload-box small {
+      transition: opacity 0.2s;
+    }
+    #riskMeterContainer {
+      margin: 24px 0;
+      text-align: center;
+    }
+    #riskPercentText {
+      font-size: 1.2em;
+      font-weight: bold;
+      user-select: none;
+    }
+    .preview-container {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      margin: auto;
+      width: 98%;
+      height: 98%;
+      z-index: 2;
+      justify-content: center;
+      align-items: center;
+      background: rgba(255,255,255,0.97);
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(60,100,180,0.08);
+    }
+    #previewImage {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(60,100,180,0.08);
+    }
+    .remove-preview-btn {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      background: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 1.2em;
+      color: #d32f2f;
+      cursor: pointer;
+      z-index: 3;
+      box-shadow: 0 1px 4px rgba(60,100,180,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .remove-preview-btn:hover {
+      background: #f8d7da;
+    }
+    /* Additional styling for result details */
+    #resultDetails {
+      margin: 24px 0 0 0;
+      background: #f7faff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      font-size: 1.05em;
+      color: #222;
+      box-shadow: 0 2px 8px rgba(60,100,180,0.06);
+    }
+    #resultDetails section.result-section {
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    #resultDetails section.result-section:last-child {
+      border-bottom: none;
+    }
+    #resultDetails h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.15em;
+      color: #2563eb;
+    }
+    #resultDetails ul {
+      margin: 0 0 0 18px;
+      padding: 0;
+    }
+    #resultDetails li {
+      margin-bottom: 4px;
+    }
+    #resultDetails a {
+      color: #2563eb;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="shield">🛡️</div>
+      <div>
+        <h1>Email Phishing Hunter</h1>
+        <p>Upload a screenshot of a suspicious email and we'll analyze it for common phishing techniques</p>
+      </div>
+    </header>
+    <main>
+      <section class="features">
+        <h2>Check Your Email for Phishing Attempts</h2>
+        <p>Our tool analyzes email screenshots to detect common phishing techniques:</p>
+        <div class="feature-cards">
+          <div class="feature-card">
+            <strong>Header Analysis</strong>
+            <span>Detects forged email headers and unusual routing</span>
+          </div>
+          <div class="feature-card">
+            <strong>Sender Verification</strong>
+            <span>Identifies suspicious sender addresses and domains</span>
+          </div>
+          <div class="feature-card">
+            <strong>Link Checking</strong>
+            <span>Flags malicious URLs and deceptive links</span>
+          </div>
+        </div>
+      </section>
+      <form id="uploadForm" class="upload-form" enctype="multipart/form-data">
+        <label for="imageInput" class="upload-box" id="uploadBox" style="position:relative;">
+          <div class="upload-icon" id="uploadIcon">⬆️</div>
+          <div>
+            <span id="uploadText">Upload E-mail Screenshot</span>
+            <small id="uploadSmall">PNG, JPG, WEBP (Max 10MB)</small>
+          </div>
+          <input type="file" id="imageInput" name="image" accept="image/*" required />
+          <div class="preview-container" id="previewContainer">
+            <button type="button" class="remove-preview-btn" id="removePreviewBtn" title="Remove screenshot">&times;</button>
+            <img id="previewImage" src="" alt="Preview" />
+          </div>
+        </label>
+        <button type="submit" id="analyzeBtn" disabled>Analyze Email</button>
+      </form>
+      <!-- Circular Risk Meter -->
+      <div id="riskMeterContainer">
+        <label for="riskMeterCircle"><b>Risk Meter:</b></label>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg id="riskMeterCircle" width="120" height="120">
+            <circle cx="60" cy="60" r="50" stroke="#eee" stroke-width="12" fill="none"/>
+            <circle id="riskMeterArc" cx="60" cy="60" r="50" stroke="#22c55e" stroke-width="12" fill="none"
+              stroke-linecap="round"
+              stroke-dasharray="314"
+              stroke-dashoffset="314"
+              transform="rotate(-90 60 60)"/>
+            <text id="riskPercentText" x="60" y="68" text-anchor="middle" font-size="1.5em" font-weight="bold" fill="#222">0%</text>
+          </svg>
+        </div>
+      </div>
+      <pre id="result"></pre>
+      <div id="resultDetails"></div>
+    </main>
+  </div>
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const uploadForm = document.getElementById('uploadForm');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resultDiv = document.getElementById('result');
+    const previewImage = document.getElementById('previewImage');
+    const previewContainer = document.getElementById('previewContainer');
+    const removePreviewBtn = document.getElementById('removePreviewBtn');
+    const uploadIcon = document.getElementById('uploadIcon');
+    const uploadText = document.getElementById('uploadText');
+    const uploadSmall = document.getElementById('uploadSmall');
+    const resultDetails = document.getElementById('resultDetails');
+
+    imageInput.addEventListener('change', function() {
+      analyzeBtn.disabled = !imageInput.files.length;
+      if (imageInput.files && imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImage.src = e.target.result;
+          previewContainer.style.display = 'flex';
+          uploadIcon.style.opacity = '0.2';
+          uploadText.style.opacity = '0.2';
+          uploadSmall.style.opacity = '0.2';
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+      } else {
+        previewImage.src = '';
+        previewContainer.style.display = 'none';
+        uploadIcon.style.opacity = '1';
+        uploadText.style.opacity = '1';
+        uploadSmall.style.opacity = '1';
+      }
+    });
+
+    removePreviewBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      imageInput.value = '';
+      previewImage.src = '';
+      previewContainer.style.display = 'none';
+      uploadIcon.style.opacity = '1';
+      uploadText.style.opacity = '1';
+      uploadSmall.style.opacity = '1';
+      analyzeBtn.disabled = true;
+    });
+
+    function updateRiskMeter(riskScore) {
+      // Color calculation: green (low) to red (high)
+      let color;
+      if (riskScore <= 50) {
+        // Green to yellow
+        const ratio = riskScore / 50;
+        color = `rgb(${34 + (250-34)*ratio}, ${197 + (204-197)*ratio}, ${94 - (94-21)*ratio})`;
+      } else {
+        // Yellow to red
+        const ratio = (riskScore - 50) / 50;
+        color = `rgb(${250 + (239-250)*ratio}, ${204 - 204*ratio}, ${21 + (68-21)*ratio})`;
+      }
+
+      // Update SVG arc
+      const circle = document.getElementById('riskMeterArc');
+      const percentText = document.getElementById('riskPercentText');
+      const circumference = 2 * Math.PI * 50;
+      const offset = circumference - (riskScore / 100) * circumference;
+      circle.style.stroke = color;
+      circle.style.strokeDashoffset = offset;
+      percentText.textContent = `${riskScore}%`;
+      percentText.setAttribute('fill', color);
+    }
+
+    function renderResultDetails(data) {
+      if (!data || !data.result) {
+        resultDetails.innerHTML = '';
+        return;
+      }
+      const { header, sender, links, phishing_findings } = data.result;
+      let html = '';
+
+      // Header Section
+      html += `<section class="result-section"><h3>Header Analysis</h3>
+        <ul>
+          <li><b>Suspicious:</b> ${header?.suspicious ? 'Yes' : 'No'}</li>
+          ${header?.reason ? `<li><b>Reason:</b> ${header.reason}</li>` : ''}
+        </ul></section>`;
+
+      // Sender Section
+      html += `<section class="result-section"><h3>Sender Details</h3>
+        <ul>
+          <li><b>Email:</b> ${sender?.email || 'Unknown'}</li>
+          <li><b>Suspicious:</b> ${sender?.suspicious ? 'Yes' : 'No'}</li>
+          ${sender?.reason ? `<li><b>Reason:</b> ${sender.reason}</li>` : ''}
+        </ul></section>`;
+
+      // Links Section
+      if (links && links.length) {
+        html += `<section class="result-section"><h3>Links Analysis</h3><ul>`;
+        links.forEach(link => {
+          html += `<li>
+            <b>URL:</b> <a href="${link.url}" target="_blank">${link.url}</a><br>
+            <b>Suspicious:</b> ${link.suspicious ? 'Yes' : 'No'}<br>
+            ${link.reason ? `<b>Reason:</b> ${link.reason}<br>` : ''}
+          </li>`;
+        });
+        html += `</ul></section>`;
+      }
+
+      // Phishing Findings Section
+      if (phishing_findings && phishing_findings.length) {
+        html += `<section class="result-section"><h3>Phishing Findings</h3><ul>`;
+        phishing_findings.forEach(finding => {
+          html += `<li>${finding}</li>`;
+        });
+        html += `</ul></section>`;
+      }
+
+      resultDetails.innerHTML = html;
+    }
+
+    uploadForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!imageInput.files.length) {
+        resultDiv.textContent = "Please select an image file.";
+        resultDetails.innerHTML = '';
+        return;
+      }
+      const imageFile = imageInput.files[0];
+      resultDiv.textContent = 'Analyzing...';
+      resultDetails.innerHTML = '';
+
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      try {
+        const response = await fetch('/api/analyze-email', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+
+        // Update circular risk meter
+        updateRiskMeter(data.riskScore);
+
+        // Format the output (summary)
+        let output = '';
+        if (data.result.header) {
+          output += `Header:\n  Suspicious: ${data.result.header.suspicious}\n`;
+          if (data.result.header.reason) output += `  Reason: ${data.result.header.reason}\n`;
+        }
+        if (data.result.sender) {
+          output += `Sender:\n  Email: ${data.result.sender.email}\n  Suspicious: ${data.result.sender.suspicious}\n`;
+          if (data.result.sender.reason) output += `  Reason: ${data.result.sender.reason}\n`;
+        }
+        resultDiv.textContent = output;
+
+        // Render all details
+        renderResultDetails(data);
+
+      } catch (err) {
+        resultDiv.textContent = 'Error analyzing image.';
+        resultDetails.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>
