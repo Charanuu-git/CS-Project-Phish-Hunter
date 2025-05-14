@@ -1,0 +1,42 @@
+Here are some dead giveaways that an email might be a phishing attempt:
+
+1. Suspicious Sender Address
+
+    - The sender’s email address doesn’t match the organization’s official domain (e.g., support@amaz0n-security.com instead of support@amazon.com).
+    - Urgent or Threatening Language The email pressures you to act quickly (“Your account will be suspended immediately!”). 
+    - Requests for Sensitive Information
+    - Asks for passwords, credit card numbers, or other personal info.
+
+2. Unusual Links or Attachments
+
+    - Contains links that don’t match the legitimate website (hover to check).
+    - Unexpected attachments, especially with file types like .exe, .zip, or .scr.
+
+3. Spelling and Grammar Mistakes
+
+    - Poor grammar, awkward phrasing, or lots of typos.
+    - Generic Greetings
+    - Uses greetings like “Dear Customer” instead of your real name.
+
+4. Spoofed Branding
+
+    - Logos or branding look off, blurry, or inconsistent with the real company.
+
+5. Mismatched URLs
+
+    - The visible link text doesn’t match the actual URL.
+
+6. Lack of Authentication Signatures
+
+    - Missing DKIM/SPF/DMARC authentication in the email headers.
+
+7. Too Good to Be True Offers
+
+    - Promises of prizes, money, or rewards for little or no effort.
+    
+
+Your program, for several of these Suspicious sender domains (with Sucuri and domain checks):
+    - Lack of authentication signatures
+    - Urgent words in the message
+    - Suspicious/malicious links
+    - For best results, combine these checks for a more accurate phishing detection!
