@@ -22,10 +22,26 @@
       margin: 24px 0;
       text-align: center;
     }
-    #riskPercentText {
-      font-size: 1.2em;
+    .meter {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin: 0 auto;
+    }
+    .background {
+      stroke: #eee;
+    }
+    .progress {
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+    }
+    .percentage-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2em;
       font-weight: bold;
-      user-select: none;
     }
     .preview-container {
       display: none;
@@ -105,6 +121,20 @@
       color: #2563eb;
       word-break: break-all;
     }
+    /* Spinner styles */
+    .spinner {
+      border: 8px solid #e3e8f0;
+      border-top: 8px solid #2563eb;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
   </style>
 </head>
 <body>
@@ -150,22 +180,22 @@
         </label>
         <button type="submit" id="analyzeBtn" disabled>Analyze Email</button>
       </form>
-      <!-- Circular Risk Meter -->
+      <!-- Animated Risk Meter -->
       <div id="riskMeterContainer">
-        <label for="riskMeterCircle"><b>Risk Meter:</b></label>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <svg id="riskMeterCircle" width="120" height="120">
-            <circle cx="60" cy="60" r="50" stroke="#eee" stroke-width="12" fill="none"/>
-            <circle id="riskMeterArc" cx="60" cy="60" r="50" stroke="#22c55e" stroke-width="12" fill="none"
-              stroke-linecap="round"
-              stroke-dasharray="314"
-              stroke-dashoffset="314"
-              transform="rotate(-90 60 60)"/>
-            <text id="riskPercentText" x="60" y="68" text-anchor="middle" font-size="1.5em" font-weight="bold" fill="#222">0%</text>
+        <h2 style="font-size:1.2em;margin-bottom:10px;">Risk Meter:</h2>
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" style="display:none;justify-content:center;align-items:center;height:220px;">
+          <div class="spinner"></div>
+        </div>
+        <div class="meter" id="riskMeter" style="margin-bottom:0;">
+          <svg width="220" height="220">
+            <circle cx="110" cy="110" r="90" stroke-width="20" class="background" fill="none"/>
+            <circle id="progressCircle" cx="110" cy="110" r="90" stroke-width="20" class="progress" fill="none" stroke="orange"
+                    stroke-dasharray="565.48" stroke-dashoffset="565.48"/>
           </svg>
+          <div class="percentage-text" id="riskText">0%</div>
         </div>
       </div>
-      <pre id="result"></pre>
       <div id="resultDetails"></div>
     </main>
   </div>
@@ -173,7 +203,6 @@
     const imageInput = document.getElementById('imageInput');
     const uploadForm = document.getElementById('uploadForm');
     const analyzeBtn = document.getElementById('analyzeBtn');
-    const resultDiv = document.getElementById('result');
     const previewImage = document.getElementById('previewImage');
     const previewContainer = document.getElementById('previewContainer');
     const removePreviewBtn = document.getElementById('removePreviewBtn');
@@ -181,6 +210,31 @@
     const uploadText = document.getElementById('uploadText');
     const uploadSmall = document.getElementById('uploadSmall');
     const resultDetails = document.getElementById('resultDetails');
+    const riskMeter = document.getElementById('riskMeter');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // Risk Meter Animation
+    const radius = 90;
+    const circumference = 2 * Math.PI * radius;
+    const progressCircle = document.getElementById("progressCircle");
+    const riskText = document.getElementById("riskText");
+
+    function getRiskColor(percent) {
+      const hue = 120 - (percent * 1.2);
+      return `hsl(${hue}, 100%, 50%)`;
+    }
+
+    function updateRiskMeter(percent) {
+      const offset = circumference - (percent / 100) * circumference;
+      const color = getRiskColor(percent);
+
+      progressCircle.style.strokeDasharray = circumference;
+      progressCircle.style.strokeDashoffset = offset;
+      progressCircle.style.stroke = color;
+
+      riskText.textContent = percent + "%";
+      riskText.style.color = color;
+    }
 
     imageInput.addEventListener('change', function() {
       analyzeBtn.disabled = !imageInput.files.length;
@@ -214,30 +268,6 @@
       analyzeBtn.disabled = true;
     });
 
-    function updateRiskMeter(riskScore) {
-      // Color calculation: green (low) to red (high)
-      let color;
-      if (riskScore <= 50) {
-        // Green to yellow
-        const ratio = riskScore / 50;
-        color = `rgb(${34 + (250-34)*ratio}, ${197 + (204-197)*ratio}, ${94 - (94-21)*ratio})`;
-      } else {
-        // Yellow to red
-        const ratio = (riskScore - 50) / 50;
-        color = `rgb(${250 + (239-250)*ratio}, ${204 - 204*ratio}, ${21 + (68-21)*ratio})`;
-      }
-
-      // Update SVG arc
-      const circle = document.getElementById('riskMeterArc');
-      const percentText = document.getElementById('riskPercentText');
-      const circumference = 2 * Math.PI * 50;
-      const offset = circumference - (riskScore / 100) * circumference;
-      circle.style.stroke = color;
-      circle.style.strokeDashoffset = offset;
-      percentText.textContent = `${riskScore}%`;
-      percentText.setAttribute('fill', color);
-    }
-
     function renderResultDetails(data) {
       if (!data || !data.result) {
         resultDetails.innerHTML = '';
@@ -268,7 +298,6 @@
           html += `<li>
             <b>URL:</b> <a href="${link.url}" target="_blank">${link.url}</a><br>
             <b>Suspicious:</b> ${link.suspicious ? 'Yes' : 'No'}<br>
-            ${link.reason ? `<b>Reason:</b> ${link.reason}<br>` : ''}
           </li>`;
         });
         html += `</ul></section>`;
@@ -289,47 +318,50 @@
     uploadForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       if (!imageInput.files.length) {
-        resultDiv.textContent = "Please select an image file.";
         resultDetails.innerHTML = '';
         return;
       }
       const imageFile = imageInput.files[0];
-      resultDiv.textContent = 'Analyzing...';
       resultDetails.innerHTML = '';
+
+      // Show loading spinner, hide risk meter
+      loadingSpinner.style.display = 'flex';
+      riskMeter.style.display = 'none';
 
       const formData = new FormData();
       formData.append('image', imageFile);
 
+      let data = null;
       try {
         const response = await fetch('/api/analyze-email', {
           method: 'POST',
           body: formData,
         });
-        const data = await response.json();
-
-        // Update circular risk meter
-        updateRiskMeter(data.riskScore);
-
-        // Format the output (summary)
-        let output = '';
-        if (data.result.header) {
-          output += `Header:\n  Suspicious: ${data.result.header.suspicious}\n`;
-          if (data.result.header.reason) output += `  Reason: ${data.result.header.reason}\n`;
-        }
-        if (data.result.sender) {
-          output += `Sender:\n  Email: ${data.result.sender.email}\n  Suspicious: ${data.result.sender.suspicious}\n`;
-          if (data.result.sender.reason) output += `  Reason: ${data.result.sender.reason}\n`;
-        }
-        resultDiv.textContent = output;
-
-        // Render all details
-        renderResultDetails(data);
-
+        data = await response.json();
       } catch (err) {
-        resultDiv.textContent = 'Error analyzing image.';
-        resultDetails.innerHTML = '';
+        resultDetails.innerHTML = '<div style="color:#d32f2f;">Error analyzing image.</div>';
+        // Hide spinner, show risk meter (reset)
+        setTimeout(() => {
+          loadingSpinner.style.display = 'none';
+          riskMeter.style.display = 'block';
+          updateRiskMeter(0);
+        }, 3000); // changed from 5000 to 3000
+        return;
       }
+
+      // Wait 3 seconds before showing the risk meter
+      setTimeout(() => {
+        loadingSpinner.style.display = 'none';
+        riskMeter.style.display = 'block';
+        // Update animated risk meter
+        updateRiskMeter(data.riskScore);
+        // Only render all details (no summary)
+        renderResultDetails(data);
+      }, 3000); // changed from 5000 to 3000
     });
+
+    // Initialize risk meter to 0%
+    updateRiskMeter(0);
   </script>
 </body>
 </html>
